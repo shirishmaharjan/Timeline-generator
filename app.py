@@ -7,17 +7,19 @@ import textwrap
 
 # Page configuration
 st.set_page_config(
-    page_title="Custom Timeline Generator", page_icon="📊", layout="wide"
+    page_title="Fully Customizable Timeline Generator",
+    page_icon="🎨",
+    layout="wide",
 )
 
-st.title("📊 Custom Disaster Response Timeline Generator")
+st.title("🎨 Fully Customizable Disaster Response Timeline Generator")
 st.markdown(
-    "Define your custom legend categories in the sidebar, edit your timeline"
-    " events below, and generate your high-res graphic instantly."
+    "Configure your titles, fonts, colors, and categories in the sidebar, edit"
+    " your timeline data, and download your customized graphic instantly."
 )
 
 # -----------------------------------------------------------------------------
-# 1. SESSION STATE FOR CUSTOM CATEGORIES (LEGEND)
+# 1. SESSION STATE SETUP
 # -----------------------------------------------------------------------------
 if "categories" not in st.session_state:
   st.session_state.categories = {
@@ -28,7 +30,6 @@ if "categories" not in st.session_state:
       "Relief & Recovery": "#27AE60",
   }
 
-# Initialize default timeline data
 if "data" not in st.session_state:
   st.session_state.data = [
       {
@@ -79,57 +80,85 @@ if "data" not in st.session_state:
   ]
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: DEFINE LEGEND & CATEGORIES FIRST
+# 2. SIDEBAR: FULL CUSTOMIZATION DASHBOARD
 # -----------------------------------------------------------------------------
-st.sidebar.header("🎨 1. Define Legend Categories")
-st.sidebar.markdown(
-    "Add or remove your custom categories and pick their colors here first:"
-)
+st.sidebar.header("🛠️ Customization Dashboard")
 
-# Convert session categories to a dataframe for easy editing in sidebar
-cat_df = pd.DataFrame([
-    {"Category Name": k, "Color (Hex)": v}
-    for k, v in st.session_state.categories.items()
-])
-edited_cat_df = st.sidebar.data_editor(
-    cat_df, num_rows="dynamic", key="cat_editor", use_container_width=True
-)
+# --- TAB 1: LEGEND CATEGORIES ---
+with st.sidebar.expander("🎨 1. Legend & Categories", expanded=True):
+  st.markdown("Define category names and their matching hex colors:")
+  cat_df = pd.DataFrame([
+      {"Category Name": k, "Color (Hex)": v}
+      for k, v in st.session_state.categories.items()
+  ])
+  edited_cat_df = st.data_editor(
+      cat_df, num_rows="dynamic", key="cat_editor", use_container_width=True
+  )
 
-# Update session categories based on sidebar input (Fixed key names with spaces)
-new_categories = {}
-for _, row in edited_cat_df.iterrows():
-  name = str(row["Category Name"]).strip()
-  color = str(row["Color (Hex)"]).strip()
-  if name and name != "nan":
-    if not color.startswith("#"):
-      color = "#3B82F6"  # Fallback hex if mistyped
-    new_categories[name] = color
+  new_categories = {}
+  for _, row in edited_cat_df.iterrows():
+    name = str(row["Category Name"]).strip()
+    color = str(row["Color (Hex)"]).strip()
+    if name and name != "nan":
+      if not color.startswith("#"):
+        color = "#3B82F6"
+      new_categories[name] = color
+  st.session_state.categories = new_categories
 
-st.session_state.categories = new_categories
+# --- TAB 2: TITLES & TEXT ---
+with st.sidebar.expander("📝 2. Titles & Footers", expanded=False):
+  main_title_text = st.text_input(
+      "Main Chart Title", "DISASTER RESPONSE TIMELINE"
+  )
+  subtitle_text = st.text_input(
+      "Subtitle / Date Range",
+      "Emergency Operations Timeline  —  October 12 – 17, 2026",
+  )
+  source_text = st.text_input(
+      "Source Footer",
+      "Source: District Disaster Management Committee (DDMC) SitReps",
+  )
 
-st.sidebar.markdown("---")
-st.sidebar.header("⚙️ Chart Settings")
-subtitle_text = st.sidebar.text_input(
-    "Subtitle / Date Range",
-    "Emergency Operations Timeline  —  October 12 – 17, 2026",
-)
-source_text = st.sidebar.text_input(
-    "Source Footer",
-    "Source: District Disaster Management Committee (DDMC) SitReps",
-)
+# --- TAB 3: FONTS & SIZES ---
+with st.sidebar.expander("🔤 3. Fonts & Text Sizes", expanded=False):
+  font_family_choice = st.selectbox(
+      "Font Family", ["DejaVu Sans", "Arial", "Helvetica", "Times New Roman"]
+  )
+  title_fontsize = st.slider("Main Title Font Size", 20, 45, 34)
+  subtitle_fontsize = st.slider("Subtitle Font Size", 12, 26, 19)
+  date_fontsize = st.slider("Date Box Font Size", 10, 24, 17)
+  activity_fontsize = st.slider("Activity Text Font Size", 10, 24, 15)
+  legend_fontsize = st.slider("Legend Font Size", 10, 24, 16)
+
+# --- TAB 4: COLORS & THEME ---
+with st.sidebar.expander("🎨 4. Theme & Colors", expanded=False):
+  bg_color_choice = st.color_picker(
+      "Background Color", "#FFFFFF"
+  )  # Background
+  card_fill_choice = st.color_picker(
+      "Card Fill Color", "#F7F9FB"
+  )  # Activity Box Fill
+  card_edge_choice = st.color_picker(
+      "Card Border Color", "#D8DEE7"
+  )  # Activity Box Border
+  line_color_choice = st.color_picker("Timeline Line Color", "#C2CAD6")  # Spine
+  text_color_choice = st.color_picker(
+      "Main Text Color", "#1A2332"
+  )  # Activity Text Color
+  subtext_color_choice = st.color_picker(
+      "Subtext / Footer Color", "#5B6B7F"
+  )  # Subtitle Color
 
 # -----------------------------------------------------------------------------
-# 3. MAIN AREA: EDIT TIMELINE DATA WITH DYNAMIC DROPDOWN
+# 3. MAIN AREA: EDIT TIMELINE DATA
 # -----------------------------------------------------------------------------
-st.subheader("📝 2. Edit Timeline Data")
+st.subheader("📝 Edit Timeline Data")
 st.markdown(
-    "The **Category** column dropdown below automatically syncs with the"
-    " categories you defined in the sidebar!"
+    "The **Category** dropdown choices automatically sync with your custom"
+    " legend categories defined in the sidebar."
 )
 
 df_input = pd.DataFrame(st.session_state.data)
-
-# Available choices for the dropdown derived directly from user-defined categories
 available_categories = list(st.session_state.categories.keys())
 
 edited_df = st.data_editor(
@@ -145,15 +174,6 @@ edited_df = st.data_editor(
     },
     use_container_width=True,
 )
-
-# Styling Constants
-BG_COLOR = "#FFFFFF"
-CARD_EDGE = "#D8DEE7"
-CARD_FILL = "#F7F9FB"
-TEXT_COLOR = "#1A2332"
-SUBTEXT_COLOR = "#5B6B7F"
-LINE_COLOR = "#C2CAD6"
-ONGOING_COLOR = "#475569"
 
 
 def format_activity(text, wrap_width=20):
@@ -182,14 +202,15 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
     spine_y = 0
     x_ongoing = x_coords[-1] + 1.15
 
-    fig, ax = plt.subplots(figsize=(26, 14.5), facecolor=BG_COLOR)
-    ax.set_facecolor(BG_COLOR)
+    fig, ax = plt.subplots(figsize=(26, 14.5), facecolor=bg_color_choice)
+    ax.set_facecolor(bg_color_choice)
 
+    # Track band
     ax.axhspan(-0.045, 0.045, xmin=0.0, xmax=1.0, color="#EEF1F5", zorder=0)
     ax.plot(
         [x_coords[0] - 0.6, x_ongoing + 0.55],
         [spine_y, spine_y],
-        color=LINE_COLOR,
+        color=line_color_choice,
         lw=2.6,
         zorder=1,
         solid_capstyle="round",
@@ -201,7 +222,6 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
       sign = 1 if is_up else -1
       va = "bottom" if is_up else "top"
 
-      # Fetch color dynamically from user-defined categories
       cat_name = row.get("Category")
       cat_color = st.session_state.categories.get(cat_name, "#3B82F6")
       formatted = format_activity(row.get("Activity", ""))
@@ -232,12 +252,12 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
           x,
           y_date,
           str(row.get("Date", "")).upper(),
-          fontsize=17,
+          fontsize=date_fontsize,
           fontweight="bold",
           color=cat_color,
           ha="center",
           va=va,
-          family="DejaVu Sans",
+          family=font_family_choice,
           bbox=dict(
               boxstyle="round,pad=0.36",
               facecolor="white",
@@ -251,48 +271,55 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
           x,
           y_activity,
           formatted,
-          fontsize=15,
-          color=TEXT_COLOR,
+          fontsize=activity_fontsize,
+          color=text_color_choice,
           ha="center",
           va=va,
           linespacing=1.55,
           fontweight="medium",
+          family=font_family_choice,
           bbox=dict(
               boxstyle="round,pad=0.6",
-              facecolor=CARD_FILL,
-              edgecolor=CARD_EDGE,
+              facecolor=card_fill_choice,
+              edgecolor=card_edge_choice,
               lw=1.2,
           ),
       )
 
     # Ongoing marker
+    ongoing_color_val = "#475569"
     ax.scatter(
         x_ongoing,
         spine_y,
         color="white",
         s=460,
         zorder=3,
-        edgecolors=ONGOING_COLOR,
+        edgecolors=ongoing_color_val,
         linewidth=2.8,
     )
     ax.scatter(
-        x_ongoing, spine_y, marker="$\u2192$", color=ONGOING_COLOR, s=260, zorder=4
+        x_ongoing,
+        spine_y,
+        marker="$\u2192$",
+        color=ongoing_color_val,
+        s=260,
+        zorder=4,
     )
     ax.text(
         x_ongoing,
         0.64,
         "ONGOING\nMONITORING",
-        fontsize=17,
+        fontsize=date_fontsize,
         fontweight="bold",
-        color=ONGOING_COLOR,
+        color=ongoing_color_val,
         ha="center",
         va="bottom",
-        family="DejaVu Sans",
+        family=font_family_choice,
         linespacing=1.3,
         bbox=dict(
             boxstyle="round,pad=0.36",
             facecolor="white",
-            edgecolor=ONGOING_COLOR,
+            edgecolor=ongoing_color_val,
             lw=1.6,
             linestyle="--",
         ),
@@ -302,37 +329,38 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
     ax.set_ylim(-2.3, 2.3)
     ax.axis("off")
 
-    # Title & Subtitle
+    # Dynamic Titles & Footers with user choices
     fig.text(
         0.5,
         0.975,
-        "DISASTER RESPONSE TIMELINE",
-        fontsize=34,
+        main_title_text,
+        fontsize=title_fontsize,
         fontweight="bold",
-        color=TEXT_COLOR,
+        color=text_color_choice,
         ha="center",
-        family="DejaVu Sans",
+        family=font_family_choice,
     )
     fig.text(
         0.5,
         0.945,
         subtitle_text,
-        fontsize=19,
-        color=SUBTEXT_COLOR,
+        fontsize=subtitle_fontsize,
+        color=subtext_color_choice,
         ha="center",
         style="italic",
+        family=font_family_choice,
     )
     fig.add_artist(
         plt.Line2D(
             [0.08, 0.92],
             [0.925, 0.925],
             transform=fig.transFigure,
-            color=LINE_COLOR,
+            color=line_color_choice,
             lw=1.2,
         )
     )
 
-    # Dynamic Legend built from user-defined categories
+    # Dynamic Legend
     legend_handles = [
         plt.Line2D(
             [0],
@@ -353,9 +381,9 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
         if len(st.session_state.categories) > 0
         else 1,
         frameon=False,
-        fontsize=16,
+        fontsize=legend_fontsize,
         bbox_to_anchor=(0.5, 0.025),
-        labelcolor=TEXT_COLOR,
+        labelcolor=text_color_choice,
         handletextpad=0.6,
         columnspacing=1.8,
     )
@@ -364,7 +392,7 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
             [0.08, 0.92],
             [0.075, 0.075],
             transform=fig.transFigure,
-            color=LINE_COLOR,
+            color=line_color_choice,
             lw=1.0,
         )
     )
@@ -373,22 +401,29 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
         0.02,
         source_text,
         fontsize=12,
-        color=SUBTEXT_COLOR,
+        color=subtext_color_choice,
         ha="right",
         style="italic",
+        family=font_family_choice,
     )
 
     plt.tight_layout(rect=[0.02, 0.09, 0.98, 0.915])
 
-    # Save to buffer for download
+    # Save to buffer
     buf = io.BytesIO()
     plt.savefig(
-        buf, format="png", dpi=300, facecolor=BG_COLOR, bbox_inches="tight"
+        buf,
+        format="png",
+        dpi=300,
+        facecolor=bg_color_choice,
+        bbox_inches="tight",
     )
     buf.seek(0)
     plt.close()
 
-    st.success("Timeline successfully generated with your custom legend!")
+    st.success(
+        "Timeline successfully generated with your custom design settings!"
+    )
     st.image(
         buf, caption="Generated Timeline Preview", use_container_width=True
     )
