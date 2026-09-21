@@ -7,18 +7,28 @@ import textwrap
 
 # Page configuration
 st.set_page_config(
-    page_title="Landslide Response Timeline Generator",
-    page_icon="🏔️",
-    layout="wide",
+    page_title="Custom Timeline Generator", page_icon="📊", layout="wide"
 )
 
-st.title("🏔️ Landslide Disaster Response Timeline Generator")
+st.title("📊 Custom Disaster Response Timeline Generator")
 st.markdown(
-    "Modify the landslide emergency data below, customize settings, and"
-    " generate/download your high-res timeline graphic instantly."
+    "Define your custom legend categories in the sidebar, edit your timeline"
+    " events below, and generate your high-res graphic instantly."
 )
 
-# Initialize default data for a landslide response scenario
+# -----------------------------------------------------------------------------
+# 1. SESSION STATE FOR CUSTOM CATEGORIES (LEGEND)
+# -----------------------------------------------------------------------------
+if "categories" not in st.session_state:
+  st.session_state.categories = {
+      "Emergency Alert": "#C0392B",
+      "Field Assessment": "#D35400",
+      "Road & Logistics": "#2980B9",
+      "Geological Survey": "#8E44AD",
+      "Relief & Recovery": "#27AE60",
+  }
+
+# Initialize default timeline data
 if "data" not in st.session_state:
   st.session_state.data = [
       {
@@ -68,7 +78,36 @@ if "data" not in st.session_state:
       },
   ]
 
-# Sidebar configurations
+# -----------------------------------------------------------------------------
+# 2. SIDEBAR: DEFINE LEGEND & CATEGORIES FIRST
+# -----------------------------------------------------------------------------
+st.sidebar.header("🎨 1. Define Legend Categories")
+st.sidebar.markdown(
+    "Add or remove your custom categories and pick their colors here first:"
+)
+
+# Convert session categories to a dataframe for easy editing in sidebar
+cat_df = pd.DataFrame([
+    {"Category Name": k, "Color (Hex)": v}
+    for k, v in st.session_state.categories.items()
+])
+edited_cat_df = st.sidebar.data_editor(
+    cat_df, num_rows="dynamic", key="cat_editor", use_container_width=True
+)
+
+# Update session categories based on sidebar input
+new_categories = {}
+for _, row in edited_cat_df.iterrows():
+  name = str(row["CategoryName"]).strip()
+  color = str(row["Color(Hex)"]).strip()
+  if name and name != "nan":
+    if not color.startswith("#"):
+      color = "#3B82F6"  # Fallback hex if mistyped
+    new_categories[name] = color
+
+st.session_state.categories = new_categories
+
+st.sidebar.markdown("---")
 st.sidebar.header("⚙️ Chart Settings")
 subtitle_text = st.sidebar.text_input(
     "Subtitle / Date Range",
@@ -79,17 +118,35 @@ source_text = st.sidebar.text_input(
     "Source: District Disaster Management Committee (DDMC) SitReps",
 )
 
-st.subheader("📝 Edit Timeline Data")
+# -----------------------------------------------------------------------------
+# 3. MAIN AREA: EDIT TIMELINE DATA WITH DYNAMIC DROPDOWN
+# -----------------------------------------------------------------------------
+st.subheader("📝 2. Edit Timeline Data")
 st.markdown(
-    "Add rows, delete rows, or edit text directly in the table below. (Categories"
-    " allowed: Emergency Alert, Field Assessment, Road & Logistics, Geological"
-    " Survey, Relief & Recovery)"
+    "The **Category** column dropdown below automatically syncs with the"
+    " categories you defined in the sidebar!"
 )
 
 df_input = pd.DataFrame(st.session_state.data)
-edited_df = st.data_editor(df_input, num_rows="dynamic", use_container_width=True)
 
-# Colors tailored for landslide/environmental themes
+# Available choices for the dropdown derived directly from user-defined categories
+available_categories = list(st.session_state.categories.keys())
+
+edited_df = st.data_editor(
+    df_input,
+    num_rows="dynamic",
+    column_config={
+        "Category": st.column_config.SelectboxColumn(
+            "Category",
+            help="Select from your custom defined categories",
+            options=available_categories,
+            required=True,
+        )
+    },
+    use_container_width=True,
+)
+
+# Styling Constants
 BG_COLOR = "#FFFFFF"
 CARD_EDGE = "#D8DEE7"
 CARD_FILL = "#F7F9FB"
@@ -97,14 +154,6 @@ TEXT_COLOR = "#1A2332"
 SUBTEXT_COLOR = "#5B6B7F"
 LINE_COLOR = "#C2CAD6"
 ONGOING_COLOR = "#475569"
-
-CATEGORY_COLORS = {
-    "Emergency Alert": "#C0392B",  # Red
-    "Field Assessment": "#D35400",  # Dark Orange
-    "Road & Logistics": "#2980B9",  # Blue
-    "Geological Survey": "#8E44AD",  # Purple
-    "Relief & Recovery": "#27AE60",  # Green
-}
 
 
 def format_activity(text, wrap_width=20):
@@ -119,9 +168,14 @@ def format_activity(text, wrap_width=20):
   return "\n".join(lines)
 
 
+# -----------------------------------------------------------------------------
+# 4. CHART GENERATION BUTTON
+# -----------------------------------------------------------------------------
 if st.button("🚀 Generate & Update Chart", type="primary"):
   if edited_df.empty:
     st.warning("Please enter at least one timeline entry.")
+  elif not st.session_state.categories:
+    st.warning("Please define at least one category in the sidebar.")
   else:
     n_events = len(edited_df)
     x_coords = np.arange(1, n_events + 1) * 1.0
@@ -146,7 +200,10 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
       is_up = i % 2 == 0
       sign = 1 if is_up else -1
       va = "bottom" if is_up else "top"
-      cat_color = CATEGORY_COLORS.get(row.get("Category"), "#3B82F6")
+
+      # Fetch color dynamically from user-defined categories
+      cat_name = row.get("Category")
+      cat_color = st.session_state.categories.get(cat_name, "#3B82F6")
       formatted = format_activity(row.get("Activity", ""))
 
       stem_top = sign * 0.50
@@ -249,7 +306,7 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
     fig.text(
         0.5,
         0.975,
-        "LANDSLIDE EMERGENCY RESPONSE TIMELINE",
+        "DISASTER RESPONSE TIMELINE",
         fontsize=34,
         fontweight="bold",
         color=TEXT_COLOR,
@@ -275,7 +332,7 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
         )
     )
 
-    # Legend
+    # Dynamic Legend built from user-defined categories
     legend_handles = [
         plt.Line2D(
             [0],
@@ -287,12 +344,14 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
             markersize=15,
             markeredgecolor=color,
         )
-        for cat, color in CATEGORY_COLORS.items()
+        for cat, color in st.session_state.categories.items()
     ]
     fig.legend(
         handles=legend_handles,
         loc="lower center",
-        ncol=len(CATEGORY_COLORS),
+        ncol=len(st.session_state.categories)
+        if len(st.session_state.categories) > 0
+        else 1,
         frameon=False,
         fontsize=16,
         bbox_to_anchor=(0.5, 0.025),
@@ -329,7 +388,7 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
     buf.seek(0)
     plt.close()
 
-    st.success("Landslide Timeline successfully generated!")
+    st.success("Timeline successfully generated with your custom legend!")
     st.image(
         buf, caption="Generated Timeline Preview", use_container_width=True
     )
@@ -337,6 +396,6 @@ if st.button("🚀 Generate & Update Chart", type="primary"):
     st.download_button(
         label="📥 Download High-Resolution Image (PNG)",
         data=buf,
-        file_name="Landslide_Response_Timeline.png",
+        file_name="Custom_Timeline.png",
         mime="image/png",
     )
