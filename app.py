@@ -95,11 +95,11 @@ edited_cat_df = st.sidebar.data_editor(
     cat_df, num_rows="dynamic", key="cat_editor", use_container_width=True
 )
 
-# Update session categories based on sidebar input
+# Update session categories based on sidebar input (Fixed key names with spaces)
 new_categories = {}
 for _, row in edited_cat_df.iterrows():
-  name = str(row["CategoryName"]).strip()
-  color = str(row["Color(Hex)"]).strip()
+  name = str(row["Category Name"]).strip()
+  color = str(row["Color (Hex)"]).strip()
   if name and name != "nan":
     if not color.startswith("#"):
       color = "#3B82F6"  # Fallback hex if mistyped
